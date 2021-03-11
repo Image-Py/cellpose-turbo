@@ -7,7 +7,7 @@ import tempfile
 from scipy.ndimage import median_filter
 import cv2
 
-from . import transforms, dynamics, utils, plot, metrics, core
+from . import transforms, dynamics, utils, plot, metrics, core, flow2msk
 from .core import UnetModel, assign_device, check_mkl, use_gpu, convert_images, MXNET_ENABLED, parse_model_string
 
 urls = ['https://www.cellpose.org/models/cyto_0',
@@ -497,19 +497,26 @@ class CellposeModel(UnetModel):
                 dP = y[:,:,:2].transpose((2,0,1))
                 if compute_masks:
                     tic=time.time()
-                    niter = 1 / rescale[i] * 200
-                    p = dynamics.follow_flows(-1 * dP * (cellprob > cellprob_threshold) / 5., 
-                                                niter=niter, interp=interp, use_gpu=self.gpu)
+                    # niter = 1 / rescale[i] * 200
+                    # p = dynamics.follow_flows(-1 * dP * (cellprob > cellprob_threshold) / 5., 
+                    #                             niter=niter, interp=interp, use_gpu=self.gpu)
                     if progress is not None:
                         progress.setValue(65)
-                    maski = dynamics.get_masks(p, iscell=(cellprob>cellprob_threshold),
-                                                flows=dP, threshold=flow_threshold)
+                    # maski = dynamics.get_masks(p, iscell=(cellprob>cellprob_threshold),
+                    #                             flows=dP, threshold=flow_threshold)
+
+                    _, p, maski = flow2msk.flow2msk(dP.transpose(1,2,0), cellprob, cellprob_threshold, flow_threshold)
+
+                    maski = maski.astype('int32')
+
                     maski = utils.fill_holes_and_remove_small_masks(maski)
+
                     maski = transforms.resize_image(maski, shape[-3], shape[-2], 
                                                     interpolation=cv2.INTER_NEAREST)
                     if progress is not None:
                         progress.setValue(75)
-                    #dP = np.concatenate((dP, np.zeros((1,dP.shape[1],dP.shape[2]), np.uint8)), axis=0)
+                    # dP = np.concatenate((dP, np.zeros((1,dP.shape[1],dP.shape[2]), np.uint8)), axis=0)
+
                     flows.append([dx_to_circ(dP), dP, cellprob, p])
                     masks.append(maski)
                     flow_time += time.time() - tic
@@ -534,9 +541,10 @@ class CellposeModel(UnetModel):
                                 axis=0) # (dZ, dY, dX)
                 print('flows computed %2.2fs'%(time.time()-tic))
                 # ** mask out values using cellprob to increase speed and reduce memory requirements **
-                yout = dynamics.follow_flows(-1 * dP * (cellprob > cellprob_threshold) / 5.)
-                print('dynamics computed %2.2fs'%(time.time()-tic))
-                maski = dynamics.get_masks(yout, iscell=(cellprob>cellprob_threshold))
+                # yout = dynamics.follow_flows(-1 * dP * (cellprob > cellprob_threshold) / 5.)
+                # print('dynamics computed %2.2fs'%(time.time()-tic))
+                # maski = dynamics.get_masks(yout, iscell=(cellprob>cellprob_threshold))
+                _, yout, maski = flow2msk.flow2msk(dP.transpose(1,2,3,0), cellprob, cellprob_threshold, flow_threshold)
                 maski = utils.fill_holes_and_remove_small_masks(maski, min_size=min_size)
                 print('masks computed %2.2fs'%(time.time()-tic))
                 flow = np.array([dx_to_circ(dP[1:,i]) for i in range(dP.shape[1])])

@@ -11,7 +11,7 @@ import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter
 
-from . import utils, transforms, models, guiparts, plot, menus, io, dynamics
+from . import utils, transforms, models, guiparts, plot, menus, io, dynamics, flow2msk
 
 try:
     import matplotlib.pyplot as plt
@@ -490,9 +490,9 @@ class MainW(QtGui.QMainWindow):
         self.threshold = 0.4
         self.threshslider = QtGui.QSlider()
         self.threshslider.setOrientation(QtCore.Qt.Horizontal)
-        self.threshslider.setMinimum(1.0)
-        self.threshslider.setMaximum(30.0)
-        self.threshslider.setValue(31 - 4)
+        self.threshslider.setMinimum(0)
+        self.threshslider.setMaximum(10)
+        self.threshslider.setValue(4)
         self.l0.addWidget(self.threshslider, b, 0,1,2)
         self.threshslider.valueChanged.connect(self.compute_cprob)
         self.threshslider.setStyleSheet(guiparts.horizontal_slider_style())
@@ -508,9 +508,9 @@ class MainW(QtGui.QMainWindow):
         b+=1
         self.probslider = QtGui.QSlider()
         self.probslider.setOrientation(QtCore.Qt.Horizontal)
-        self.probslider.setMinimum(-6.0)
-        self.probslider.setMaximum(6.0)
-        self.probslider.setValue(0.0)
+        self.probslider.setMinimum(0.0)
+        self.probslider.setMaximum(10)
+        self.probslider.setValue(0)
         self.cellprob = 0.0
         self.l0.addWidget(self.probslider, b, 0,1,2)
         self.probslider.valueChanged.connect(self.compute_cprob)
@@ -1265,25 +1265,29 @@ class MainW(QtGui.QMainWindow):
 
     def compute_cprob(self):
         rerun = False
-        if self.cellprob != self.probslider.value():
+        if self.cellprob != self.probslider.value()/10.0:
             rerun = True
-            self.cellprob = self.probslider.value()
-        if self.threshold != (31 - self.threshslider.value())/10.:
+            self.cellprob = self.probslider.value()/10.0
+        if self.threshold != self.threshslider.value()/10.0:
             rerun = True
-            self.threshold = (31 - self.threshslider.value())/10.
+            self.threshold = self.threshslider.value()/10.0
         if not rerun:
             return
         
-        if self.threshold==3.0 or self.NZ>1:
-            thresh = None
+        if self.threshold==0.0 or self.NZ>1:
+            thresh = 0.0
             print('computing masks with cell prob=%0.3f, no flow error threshold'%
                     (self.cellprob))
         else:
             thresh = self.threshold
             print('computing masks with cell prob=%0.3f, flow error threshold=%0.3f'%
                     (self.cellprob, thresh))
-        maski = dynamics.get_masks(self.flows[3].copy(), iscell=(self.flows[4][-1]>self.cellprob),
-                                    flows=self.flows[4][:-1], threshold=thresh)
+        # maski = dynamics.get_masks(self.flows[3].copy(), iscell=(self.flows[4][-1]>self.cellprob),
+        #                             flows=self.flows[4][:-1], threshold=thresh)
+
+        _, _, maski = flow2msk.flow2msk(self.flows[4][:-1].copy().transpose(1,2,0), self.flows[4][-1], self.cellprob, thresh)
+        maski = maski.astype('int32')
+
         if self.NZ==1:
             maski = utils.fill_holes_and_remove_small_masks(maski)
         maski = transforms.resize_image(maski, self.cellpix.shape[-2], self.cellpix.shape[-1],

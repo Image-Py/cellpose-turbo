@@ -5,7 +5,7 @@ from cupyx.scipy import ndimage as ndimg
 import numpy as np
 from scipy import ndimage as ndimg
 
-def flow2msk(flow_origin, cell_prob, prob=0.5, grad=0.4, area=20, volume=100):
+def flow2msk(flow_origin, cell_prob, prob=0.5, grad=0.4, area=10, volume=300):
     flow = flow_origin.copy()
     shp, dim = flow.shape[:-1], flow.ndim - 1
     l = np.linalg.norm(flow, axis=-1)

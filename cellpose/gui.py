@@ -489,8 +489,8 @@ class MainW(QtGui.QMainWindow):
         self.probslider = QtGui.QSlider()
         self.probslider.setOrientation(QtCore.Qt.Horizontal)
         self.probslider.setMinimum(0)
-        self.probslider.setMaximum(10)
-        self.probslider.setValue(5)
+        self.probslider.setMaximum(100)
+        self.probslider.setValue(50)
         self.cellprob = 0.5
         self.l0.addWidget(self.probslider, b, 0,1,2)
         self.probslider.valueChanged.connect(self.compute_cprob)
@@ -510,8 +510,8 @@ class MainW(QtGui.QMainWindow):
         self.threshslider = QtGui.QSlider()
         self.threshslider.setOrientation(QtCore.Qt.Horizontal)
         self.threshslider.setMinimum(0)
-        self.threshslider.setMaximum(10)
-        self.threshslider.setValue(4)
+        self.threshslider.setMaximum(100)
+        self.threshslider.setValue(40)
         self.l0.addWidget(self.threshslider, b, 0,1,2)
         self.threshslider.valueChanged.connect(self.compute_cprob)
         self.threshslider.setStyleSheet(guiparts.horizontal_slider_style())
@@ -1265,12 +1265,12 @@ class MainW(QtGui.QMainWindow):
 
     def compute_cprob(self):
         rerun = False
-        if self.cellprob != self.probslider.value()/10.0:
+        if self.cellprob != self.probslider.value()/100.0:
             rerun = True
-            self.cellprob = self.probslider.value()/10.0
-        if self.threshold != self.threshslider.value()/10.0:
+            self.cellprob = self.probslider.value()/100.0
+        if self.threshold != self.threshslider.value()/100.0:
             rerun = True
-            self.threshold = self.threshslider.value()/10.0
+            self.threshold = self.threshslider.value()/100.0
         if not rerun:
             return
         

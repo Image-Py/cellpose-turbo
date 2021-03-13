@@ -1,7 +1,10 @@
 # Introduction
-This repo is aiming to make Cellpose **faster** and ** more accurate** at a 10x level.
+This repo is aiming to make Cellpose **faster** and **more accurate** at a 10x level.
+
 It is built on the original library (as below), so it provides the same API with Cellpose.
+
 The main change is to replace its flow-to-mask module with the algorithm [here](https://github.com/qixinbo/cellpose2msk). 
+
 [This blog](https://qixinbo.info/2021/03/03/cellpose-3/) gives an introduction about this acceleration algorithm.
 
 # Cellpose <img src="cellpose/logo/logo.png" width="250" title="cellpose" alt="cellpose" align="right" vspace = "50">

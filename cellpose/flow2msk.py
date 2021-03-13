@@ -5,21 +5,23 @@ from cupyx.scipy import ndimage as ndimg
 import numpy as np
 from scipy import ndimage as ndimg
 
-def flow2msk(flow_origin, cell_prob, prob=0.5, grad=0.4, area=10, volume=300):
+def estimate_volumes(arr, sigma=3):
+    msk = arr > 50; 
+    idx = np.arange(len(arr), dtype=np.uint32)
+    idx, arr = idx[msk], arr[msk]
+    for k in np.linspace(5, sigma, 5):
+       std = arr.std()
+       dif = np.abs(arr - arr.mean())
+       msk = dif < std * k
+       idx, arr = idx[msk], arr[msk]
+    return arr.mean(), arr.std()
+
+def flow2msk(flow_origin, prob, level=0.5, grad=0.5, area=None, volume=None):
     flow = flow_origin.copy()
     shp, dim = flow.shape[:-1], flow.ndim - 1
     l = np.linalg.norm(flow, axis=-1)
-    flow /= l.reshape(shp+(1,))
-    flow_copy = flow.copy()
-
-    # cell probablity threshold	
-    sigmoid = 1/(1+np.exp(-1*cell_prob))
-    flow[sigmoid<prob] = 0
-
-    # flow magnitude threshold
-    mag = abs(np.amax(flow_copy, axis=-1)/5.0)
-    flow[mag > grad] = flow_copy[mag > grad]
-
+    flow = flow/l.reshape(shp+(1,))
+    flow[(prob<-np.log(1/(level+1.0e-10)-1))|(l<grad)] = 0
     ss = ((slice(None),) * (dim) + ([0,-1],)) * 2
     for i in range(dim):flow[ss[dim-i:-i-2]+(i,)]=0
     sn = np.sign(flow); sn *= 0.5; flow += sn;
@@ -33,6 +35,9 @@ def flow2msk(flow_origin, cell_prob, prob=0.5, grad=0.4, area=10, volume=300):
     lab, n = ndimg.label(hist, np.ones((3,)*dim))
     volumes = ndimg.sum(hist, lab, np.arange(n+1))
     areas = np.bincount(lab.ravel())
+    mean, std = estimate_volumes(volumes, 2)
+    if volume is None: volume = max(mean-std*3, 50)
+    if area is None: area = volumes // 3
     msk = (areas<area) & (volumes>volume)
     lut = np.zeros(n+1, np.uint32)
     lut[msk] = np.arange(1, msk.sum()+1)

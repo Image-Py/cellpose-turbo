@@ -4,12 +4,6 @@ It is built on the original library (as below), so it provides the same API with
 The main change is to replace its flow-to-mask module with the algorithm [here](https://github.com/qixinbo/cellpose2msk). 
 [This blog](https://qixinbo.info/2021/03/03/cellpose-3/) gives an introduction about this acceleration algorithm.
 
-# 简介
-Cellpose-turbo可以使得Cellpose更快更准确。
-它基于原Cellpose库，因此API接口及使用方法等都与原软件相同。
-主要的加速原理是使用[这里的算法](https://github.com/qixinbo/cellpose2msk)替代了原来的流场复原掩膜模块。
-[这篇博客](https://qixinbo.info/2021/03/03/cellpose-3/)介绍了该算法的原理。
-
 # Cellpose <img src="cellpose/logo/logo.png" width="250" title="cellpose" alt="cellpose" align="right" vspace = "50">
 
 [![Documentation Status](https://readthedocs.org/projects/cellpose/badge/?version=latest)](https://cellpose.readthedocs.io/en/latest/?badge=latest)

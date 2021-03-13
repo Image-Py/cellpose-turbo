@@ -478,6 +478,25 @@ class MainW(QtGui.QMainWindow):
         self.l0.addWidget(self.progress, b,0,1,2)
 
         # post-hoc paramater tuning
+        b+=1
+        label = QtGui.QLabel('cell prob threshold:')
+        label.setStyleSheet(label_style)
+        label.setFont(self.medfont)
+        self.l0.addWidget(label, b, 0,1,2)
+        label.setToolTip('cell probability threshold (set lower to get more cells)')
+        
+        b+=1
+        self.probslider = QtGui.QSlider()
+        self.probslider.setOrientation(QtCore.Qt.Horizontal)
+        self.probslider.setMinimum(0)
+        self.probslider.setMaximum(10)
+        self.probslider.setValue(5)
+        self.cellprob = 0.5
+        self.l0.addWidget(self.probslider, b, 0,1,2)
+        self.probslider.valueChanged.connect(self.compute_cprob)
+        self.probslider.setStyleSheet(guiparts.horizontal_slider_style())
+        self.probslider.setEnabled(False)
+
 
         b+=1
         label = QtGui.QLabel('model match threshold:')
@@ -498,25 +517,6 @@ class MainW(QtGui.QMainWindow):
         self.threshslider.setStyleSheet(guiparts.horizontal_slider_style())
         self.threshslider.setEnabled(False)
         
-        b+=1
-        label = QtGui.QLabel('cell prob threshold:')
-        label.setStyleSheet(label_style)
-        label.setFont(self.medfont)
-        self.l0.addWidget(label, b, 0,1,2)
-        label.setToolTip('cell probability threshold (set lower to get more cells)')
-        
-        b+=1
-        self.probslider = QtGui.QSlider()
-        self.probslider.setOrientation(QtCore.Qt.Horizontal)
-        self.probslider.setMinimum(0.0)
-        self.probslider.setMaximum(10)
-        self.probslider.setValue(0)
-        self.cellprob = 0.0
-        self.l0.addWidget(self.probslider, b, 0,1,2)
-        self.probslider.valueChanged.connect(self.compute_cprob)
-        self.probslider.setStyleSheet(guiparts.horizontal_slider_style())
-        self.probslider.setEnabled(False)
-
         b+=1
         line = QHLine()
         line.setStyleSheet('color: white;')
@@ -1285,7 +1285,7 @@ class MainW(QtGui.QMainWindow):
         # maski = dynamics.get_masks(self.flows[3].copy(), iscell=(self.flows[4][-1]>self.cellprob),
         #                             flows=self.flows[4][:-1], threshold=thresh)
 
-        _, _, maski = flow2msk.flow2msk(self.flows[4][:-1].copy().transpose(1,2,0), self.flows[4][-1], self.cellprob, thresh)
+        _, _, maski = flow2msk.flow2msk(self.flows[4][:-1].transpose(1,2,0), self.flows[4][-1], self.cellprob, thresh)
         maski = maski.astype('int32')
 
         if self.NZ==1:

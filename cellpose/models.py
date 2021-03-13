@@ -119,7 +119,7 @@ class Cellpose():
 
     def eval(self, x, batch_size=8, channels=None, invert=False, normalize=True, diameter=30., do_3D=False, anisotropy=None,
              net_avg=True, augment=False, tile=True, tile_overlap=0.1, resample=False, interp=True,
-             flow_threshold=0.4, cellprob_threshold=0.0, min_size=15, 
+             flow_threshold=0.4, cellprob_threshold=0.5, min_size=15, 
               stitch_threshold=0.0, rescale=None, progress=None):
         """ run cellpose and get masks
 
@@ -354,7 +354,7 @@ class CellposeModel(UnetModel):
     def eval(self, imgs, batch_size=8, channels=None, normalize=True, invert=False, 
              rescale=None, diameter=None, do_3D=False, anisotropy=None, net_avg=True, 
              augment=False, tile=True, tile_overlap=0.1,
-             resample=False, interp=True, flow_threshold=0.4, cellprob_threshold=0.0, compute_masks=True, 
+             resample=False, interp=True, flow_threshold=0.4, cellprob_threshold=0.5, compute_masks=True, 
              min_size=15, stitch_threshold=0.0, progress=None):
         """
             segment list of images imgs, or 4D array - Z x nchan x Y x X

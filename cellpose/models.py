@@ -56,12 +56,11 @@ def dx_to_circ(dP):
     Y = np.clip(dP[0] / sc, -1, 1)
     sc = max(np.percentile(dP[1], 99), np.percentile(dP[1], 1))
     X = np.clip(dP[1] / sc, -1, 1)
-    H = (np.arctan2(Y, X) + np.pi) / (2*np.pi)
-    S = utils.normalize99(dP[0]**2 + dP[1]**2)
-    V = np.ones_like(S)
-    HSV = np.concatenate((H[:,:,np.newaxis], S[:,:,np.newaxis], S[:,:,np.newaxis]), axis=-1)
-    HSV = np.clip(HSV, 0.0, 1.0)
-    flow = (utils.hsv_to_rgb(HSV)*255).astype(np.uint8)
+    H = (np.arctan2(Y, X) + np.pi) / (2*np.pi) * 179
+    S = np.clip(utils.normalize99(dP[0]**2 + dP[1]**2), 0.0, 1.0) * 255
+    V = np.ones_like(S) * 255
+    HSV = np.stack((H,S,S), axis=-1)
+    flow = cv2.cvtColor(HSV.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return flow
 
 class Cellpose():
@@ -352,10 +351,10 @@ class CellposeModel(UnetModel):
                                                                                 ostr[concatenation])
                                                                                 
     def eval(self, imgs, batch_size=8, channels=None, normalize=True, invert=False, 
-             rescale=None, diameter=None, do_3D=False, anisotropy=None, net_avg=True, 
+             rescale=None, diameter=None, do_3D=False, anisotropy=None, net_avg=True,
              augment=False, tile=True, tile_overlap=0.1,
              resample=False, interp=True, flow_threshold=0.4, cellprob_threshold=0.5, compute_masks=True, 
-             min_size=15, stitch_threshold=0.0, progress=None):
+             min_size=15, stitch_threshold=0.0, return_conv=False, progress=None):
         """
             segment list of images imgs, or 4D array - Z x nchan x Y x X
 
@@ -430,6 +429,9 @@ class CellposeModel(UnetModel):
             stitch_threshold: float (optional, default 0.0)
                 if stitch_threshold>0.0 and not do_3D, masks are stitched in 3D to return volume segmentation
 
+            return_conv: bool (optional, default False)
+                return activations from final convolutional layer
+
             progress: pyqt progress bar (optional, default None)
                 to return progress bar status to GUI
 
@@ -485,8 +487,9 @@ class CellposeModel(UnetModel):
                 # rescale image for flow computation
                 img = transforms.resize_image(img, rsz=rescale[i])
                 y, style = self._run_nets(img, net_avg=net_avg, 
-                                            augment=augment, tile=tile,
-                                            tile_overlap=tile_overlap)
+                                          augment=augment, tile=tile,
+                                          tile_overlap=tile_overlap,
+                                          return_conv=return_conv)
                 net_time += time.time() - tic
                 if progress is not None:
                     progress.setValue(55)
@@ -521,8 +524,15 @@ class CellposeModel(UnetModel):
                     masks.append(maski)
                     flow_time += time.time() - tic
                 else:
-                    flows.append([dx_to_circ(dP), dP, cellprob, []])
-                    masks.append([])
+                    p = []
+                    maski = []
+                flows.append([dx_to_circ(dP), dP, cellprob, p])
+                
+                if return_conv:
+                    flows[-1].append(y[:,:,3:])
+                masks.append(maski)
+                
+                flow_time += time.time() - tic
             if compute_masks:
                 print('time spent: running network %0.2fs; flow+mask computation %0.2f'%(net_time, flow_time))
 
@@ -536,7 +546,7 @@ class CellposeModel(UnetModel):
                 yf, style = self._run_3D(x[i], rsz=rescale[i], anisotropy=anisotropy, 
                                          net_avg=net_avg, augment=augment, tile=tile, 
                                          tile_overlap=tile_overlap, progress=progress)
-                cellprob = yf[0][-1] + yf[1][-1] + yf[2][-1]
+                cellprob = yf[0][2] + yf[1][2] + yf[2][2]
                 dP = np.stack((yf[1][0] + yf[2][0], yf[0][0] + yf[2][1], yf[0][1] + yf[1][1]), 
                                 axis=0) # (dZ, dY, dX)
                 print('flows computed %2.2fs'%(time.time()-tic))
@@ -563,7 +573,7 @@ class CellposeModel(UnetModel):
         loss = self.criterion(y[:,:2] , veci) 
         if self.torch:
             loss /= 2.
-        loss2 = self.criterion2(y[:,-1] , lbl)
+        loss2 = self.criterion2(y[:,2] , lbl)
         loss = loss + loss2
         return loss
 
@@ -633,9 +643,9 @@ class CellposeModel(UnetModel):
 
         """
 
-        train_data, train_labels, test_data, test_labels, run_test = transforms.reshape_train_test(train_data, train_labels,
-                                                                                                   test_data, test_labels,
-                                                                                                   channels, normalize)
+        train_data, train_labels, test_data, test_labels, run_test = transforms.reshape_train_test(train_data, train_labels, 
+            test_data, test_labels, 
+            channels, normalize)
 
         # check if train_labels have flows
         train_flows = dynamics.labels_to_flows(train_labels, files=train_files)
@@ -851,7 +861,7 @@ class SizeModel():
                 imgi,lbl,scale = transforms.random_rotate_and_resize(
                             [train_data[i] for i in inds],
                             Y=[train_labels[i].astype(np.int16) for i in inds], scale_range=1, xy=(512,512))
-                feat = self.cp.network(imgi)[-1]
+                feat = self.cp.network(imgi)[1]
                 styles[inds+nimg*iepoch] = feat
                 diams[inds+nimg*iepoch] = np.log(diam_train[inds]) - np.log(self.diam_mean) + np.log(scale)
             del feat

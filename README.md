@@ -1,5 +1,5 @@
 # Introduction
-This repo is aiming to make Cellpose **faster** and **more accurate** at a 10x level.
+This repo is aiming to make Cellpose **faster** at a 10x level.
 
 It is built on the original repository (as below), so it provides the same API with Cellpose.
 
